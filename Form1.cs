@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Windows.Forms;
+using System.IO;
 
 namespace LogReader
 {
@@ -35,6 +36,7 @@ namespace LogReader
                     //open file and start reader thread
                     _reader.LogFilePath = OpenLogFileDialog.FileName;
                     WriteStatus($"Opened log file {_reader.LogFilePath}.");
+                    this.Text = _reader.LogFilePath;
                     if (!_readLogThread.IsAlive)
                     {
                         _readLogThread.Start();
@@ -44,6 +46,54 @@ namespace LogReader
                 {
                     MessageBox.Show($"Error opening file: {ex.ToString()}", "Error");
                 }
+            }
+        }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (_readLogThread.IsAlive)
+            {
+                _readLogThread.Abort();
+            }
+        }
+
+        private void Form1_DragEnter(object sender, DragEventArgs e)
+        {
+            try
+            {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                {
+                    e.Effect = DragDropEffects.Copy;
+                }
+                else
+                {
+                    e.Effect = DragDropEffects.None;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error opening file: {ex.ToString()}", "Error");
+            }
+        }
+
+        private void Form1_DragDrop(object sender, DragEventArgs e)
+        {
+            try
+            {
+                //open file and start reader thread
+                _reader.LogFilePath = ((string[])e.Data.GetData(DataFormats.FileDrop, false))[0];
+
+                WriteStatus($"Opened log file {_reader.LogFilePath}.");
+                this.Text = _reader.LogFilePath;
+
+                if (!_readLogThread.IsAlive)
+                {
+                    _readLogThread.Start();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error opening file: {ex.ToString()}", "Error");
             }
         }
 
@@ -60,7 +110,9 @@ namespace LogReader
                         LogFileTextBox.Text = _reader.ReadLogFile();
                         LogFileTextBox.SelectionStart = LogFileTextBox.Text.Length;
                         LogFileTextBox.ScrollToCaret();
-                        WriteStatus($"Read from log file (thread status: {_readLogThread.ThreadState}).");
+
+                        UpdateReadTimeLabel();
+                        //WriteStatus($"Read from log file (thread status: {_readLogThread.ThreadState}).");
                     }
                     catch (Exception ex)
                     {
@@ -69,6 +121,11 @@ namespace LogReader
                 });
                 Thread.Sleep(_sleepIntervalMS);
             }
+        }
+
+        private void UpdateReadTimeLabel()
+        {
+            LastReadTimeLabel.Text = $"Last Read Time: {DateTime.Now}";
         }
 
         private void WriteStatus(string text)
